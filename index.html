@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en" class="index">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Snowflake Simulator</title>
+    <link rel="stylesheet" href="./css/default.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="./assets/snow.ico">
+</head>
+
+<body class="index">
+    <header></header>
+    <h1 class="title">Snowflake Simulator</h1>
+    <div class="index-md-content">
+         <p>Below is a <a href="https://github.com/Astraflaneur/snowflake-simulator">snowflake growth simulator</a> I wrote in
+            <a href="https://www.typescriptlang.org/">TypeScript</a>. Every twelve seconds a new unique snowflake will grow.
+            There are approximately <code>9^16</code>, or <code>1,853,020,188,851,841</code> snowflakes, which means
+            the snowflakes you see have never been seen by anyone else. Click or tap on
+            one to freeze it before it thaws.</p>
+
+    </div>
+    <div class="snowflakeContainer"></div>
+    <script src="js/snowflake.js"></script>
+    <script>
+        for (let i = 0; i < 1; ++i) {
+
+            const controller = Main.main();
+            const config = controller.defaultConfig();
+
+            window.controller = controller;
+            window.config = config;
+
+            let sfCanvas = undefined;
+            let rotation = undefined;
+            let falling = undefined;
+
+            function pauseAnimations() {
+                rotation?.pause();
+                falling?.pause();
+            }
+
+            function playAnimations() {
+                rotation?.play();
+                falling?.play();
+            }
+
+            function pause() {
+                config.playing = false;
+                controller.configure(config);
+                pauseAnimations();
+            }
+
+            function play() {
+                config.playing = true;
+                controller.configure(config);
+                playAnimations();
+            }
+
+            function toggle() {
+                config.playing = !config.playing;
+                controller.configure(config);
+                if (config.playing) {
+                    playAnimations();
+                } else {
+                    pauseAnimations();
+                }
+            }
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    pause();
+                } else {
+                    play();
+                }
+            });
+
+            function random(canvas) {
+                rotation = canvas.animate(
+                    [
+                        {
+                            transform: "rotate(0turn)",
+                        },
+                        {
+                            transform: "rotate(2turn)",
+                        },
+                    ],
+                    {
+                        duration: 10000,
+                        iterations: 1,
+                        easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+                    });
+                rotation.onfinish = (event) => {
+                    rotation = undefined;
+                    falling = canvas.animate(
+                        [
+                            {
+                                transform: "rotate3d(0, 0, 0, 0deg) scale(1)",
+                            },
+                            {
+                                transform: "rotate3d(2, -0.5, 1, 2turn) scale(0)",
+                            },
+                        ],
+                        {
+                            duration: 2500,
+                            iterations: 1,
+                            easing: 'ease-in',
+                        });
+                    falling.onfinish = (event2) => {
+                        falling = undefined;
+                        canvas.style.display = 'none';
+                        random(canvas);
+                    };
+                };
+                config.snowflakeId = controller.randomSnowflakeId();
+                controller.configure(config);
+            }
+
+            function installSnowflakeCanvasCallback(snowflake) {
+                sfCanvas = snowflake;
+                sfCanvas.className = 'snowflake';
+                const snowflakeContainer = document.getElementsByClassName('snowflakeContainer')[0];
+                snowflakeContainer.appendChild(snowflake);
+                sfCanvas.addEventListener('click', () => {
+                    function copyNodeStyle(sourceNode, targetNode) {
+                        const computedStyle = window.getComputedStyle(sourceNode);
+                        Array.from(computedStyle).forEach(key =>
+                            targetNode.style.setProperty(
+                                key,
+                                computedStyle.getPropertyValue(key),
+                                computedStyle.getPropertyPriority(key)
+                            )
+                        );
+                    }
+                    const w = window.open('', '_blank');
+                    const c2 = w.document.createElement('canvas');
+                    copyNodeStyle(sfCanvas, c2);
+                    copyNodeStyle(document.body, w.document.body);
+                    copyNodeStyle(document.documentElement, w.document.documentElement);
+                    w.document.documentElement.style.width = '100%';
+                    w.document.documentElement.style.height = '100%';
+                    w.document.body.style.width = '100%';
+                    w.document.body.style.height = '100%';
+                    c2.width = sfCanvas.width;
+                    c2.height = sfCanvas.height;
+                    c2.style.marginTop = 'auto';
+                    c2.style.marginBottom = 'auto';
+                    c2.style.transform = '';
+                    w.document.body.style.display = 'flex';
+                    w.document.body.style.justifyContent = 'center';
+                    const ctx = c2.getContext('2d');
+                    ctx.drawImage(sfCanvas, 0, 0);
+                    w.document.body.appendChild(c2);
+                    w.focus();
+                });
+                random(sfCanvas);
+            }
+
+            config.snowflakeCanvasSizePX = 800;
+            config.targetGrowthTimeMS = 250;
+            config.upsCap = 60;
+            config.maxUpdates = 500;
+            config.playing = true;
+            config.finishedGrowingCallback = () => { return; };
+            config.resetCallback = () => sfCanvas !== undefined ? sfCanvas.style.display = '' : 0;
+            config.installSnowflakeCanvasCallback = installSnowflakeCanvasCallback;
+            config.installSnowflakeCanvasFailureCallback = () => console.error('failed to get snowflake canvas 2d context');
+
+
+            controller.configure(config);
+
+            controller.installSnowflakeCanvas();
+
+            // setInterval(() => {
+            //     config.playing = !config.playing;
+            //     controller.configure(config);
+            // }, 1000);
+        }
+
+    </script>
+
+</body>
+
+</html>
